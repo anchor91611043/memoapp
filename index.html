@@ -2,24 +2,53 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>メモ帳</title>
+    <title>Notion風メモ</title>
     <style>
-        textarea { width: 100%; height: 90vh; font-size: 16px; padding: 10px; box-sizing: border-box; }
+        body { font-family: sans-serif; padding: 20px; }
+        .page-link { color: blue; cursor: pointer; text-decoration: underline; display: block; margin: 5px 0; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        td, th { border: 1px solid #ccc; padding: 8px; }
     </style>
 </head>
 <body>
-    <textarea id="memo" placeholder="ここに文字を打つ..."></textarea>
+    <div id="app">
+        <h1 id="title">ホーム</h1>
+        <div id="content"></div>
+        <button onclick="addPage()">ページ追加</button>
+        <button onclick="addTable()">表を追加</button>
+    </div>
 
     <script>
-        const memo = document.getElementById('memo');
-        // 保存された内容を読み込む
-        memo.value = localStorage.getItem('myMemo') || '';
-        // 入力するたびに自動保存
-        memo.addEventListener('input', () => {
-            localStorage.setItem('myMemo', memo.value);
-        });
+        let state = JSON.parse(localStorage.getItem('myNotion')) || { id: 'root', title: 'ホーム', text: '', children: [] };
+
+        function render() {
+            const content = document.getElementById('content');
+            content.innerHTML = `<textarea oninput="save(this.value)">${state.text}</textarea>`;
+            
+            // 子ページ表示
+            state.children.forEach((child, index) => {
+                const link = document.createElement('div');
+                link.className = 'page-link';
+                link.innerText = child.title;
+                link.onclick = () => alert("階層移動の実装はここを改造します");
+                content.appendChild(link);
+            });
+        }
+
+        function save(val) {
+            state.text = val;
+            localStorage.setItem('myNotion', JSON.stringify(state));
+        }
+
+        function addPage() {
+            const title = prompt("ページ名:");
+            if(title) {
+                state.children.push({ title, text: '', children: [] });
+                render();
+            }
+        }
+
+        render();
     </script>
 </body>
 </html>
