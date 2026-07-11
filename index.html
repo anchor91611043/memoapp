@@ -2,48 +2,64 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Notion風メモ</title>
+    <title>Notion風メモ（階層構造版）</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .page-link { color: blue; cursor: pointer; text-decoration: underline; display: block; margin: 5px 0; }
-        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-        td, th { border: 1px solid #ccc; padding: 8px; }
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        .page-link { color: #007bff; cursor: pointer; text-decoration: underline; margin-bottom: 5px; }
+        textarea { width: 100%; height: 200px; display: block; margin: 10px 0; }
+        .nav { margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
+    <div id="nav" class="nav"></div>
     <div id="app">
-        <h1 id="title">ホーム</h1>
-        <div id="content"></div>
+        <h1 id="page-title">ホーム</h1>
+        <textarea id="text-area" oninput="saveCurrentPage()"></textarea>
+        <div id="children-list"></div>
+        <hr>
         <button onclick="addPage()">ページ追加</button>
-        <button onclick="addTable()">表を追加</button>
+        <button onclick="goBack()">戻る</button>
     </div>
 
     <script>
-        let state = JSON.parse(localStorage.getItem('myNotion')) || { id: 'root', title: 'ホーム', text: '', children: [] };
+        // データ構造の初期化
+        let db = JSON.parse(localStorage.getItem('myNotion')) || { title: 'ホーム', text: '', children: [] };
+        let currentPath = [db]; // ページの階層を管理する配列
 
         function render() {
-            const content = document.getElementById('content');
-            content.innerHTML = `<textarea oninput="save(this.value)">${state.text}</textarea>`;
+            const currentPage = currentPath[currentPath.length - 1];
+            document.getElementById('page-title').innerText = currentPage.title;
+            document.getElementById('text-area').value = currentPage.text || '';
             
-            // 子ページ表示
-            state.children.forEach((child, index) => {
-                const link = document.createElement('div');
-                link.className = 'page-link';
-                link.innerText = child.title;
-                link.onclick = () => alert("階層移動の実装はここを改造します");
-                content.appendChild(link);
+            const list = document.getElementById('children-list');
+            list.innerHTML = '<h3>子ページ:</h3>';
+            currentPage.children.forEach((child, index) => {
+                const div = document.createElement('div');
+                div.className = 'page-link';
+                div.innerText = child.title;
+                div.onclick = () => { currentPath.push(child); render(); };
+                list.appendChild(div);
             });
+            document.getElementById('nav').innerText = currentPath.map(p => p.title).join(' > ');
         }
 
-        function save(val) {
-            state.text = val;
-            localStorage.setItem('myNotion', JSON.stringify(state));
+        function saveCurrentPage() {
+            currentPath[currentPath.length - 1].text = document.getElementById('text-area').value;
+            localStorage.setItem('myNotion', JSON.stringify(db));
         }
 
         function addPage() {
-            const title = prompt("ページ名:");
+            const title = prompt("ページ名を入力:");
             if(title) {
-                state.children.push({ title, text: '', children: [] });
+                currentPath[currentPath.length - 1].children.push({ title, text: '', children: [] });
+                saveCurrentPage();
+                render();
+            }
+        }
+
+        function goBack() {
+            if (currentPath.length > 1) {
+                currentPath.pop();
                 render();
             }
         }
