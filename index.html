@@ -2,45 +2,94 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>マークダウンメモ</title>
-    <!-- マークダウン変換用のライブラリを読み込み -->
+    <title>Notion風メモ（階層構造・保存演出・表管理版）</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; display: flex; gap: 20px; }
-        #editor-area { flex: 1; height: 80vh; }
-        #preview-area { flex: 1; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; }
-        textarea { width: 100%; height: 100%; }
-        .page-link { color: blue; cursor: pointer; text-decoration: underline; }
+        body { font-family: sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: auto; }
+        .toolbar { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        #save-status { font-size: 12px; color: #666; opacity: 0; transition: opacity 0.5s; }
+        
+        #editor { width: 100%; height: 300px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        #preview { padding: 15px; border-radius: 8px; cursor: pointer; min-height: 100px; }
+        #preview:hover { background: #f8f8f8; }
+        
+        .page-link { color: #007bff; cursor: pointer; text-decoration: underline; display: block; margin: 5px 0; }
+        .nav { font-size: 14px; color: #888; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div id="editor-area">
-        <h1 id="page-title">ホーム</h1>
-        <textarea id="text-area" oninput="saveAndPreview()"></textarea>
+    <div id="nav" class="nav"></div>
+    <h1 id="page-title">ホーム</h1>
+    
+    <div class="toolbar">
+        <button onclick="toggleMode()">編集/表示切替</button>
+        <button onclick="addRow()">行追加</button>
+        <button onclick="removeRow()">行削除</button>
+        <button onclick="addPage()">＋ページ追加</button>
+        <button onclick="goBack()">戻る</button>
+        <span id="save-status">保存済み</span>
     </div>
-    <div id="preview-area">
-        <h3>プレビュー</h3>
-        <div id="rendered-content"></div>
-    </div>
+
+    <textarea id="editor" style="display:none;" oninput="autoSave()"></textarea>
+    <div id="preview" onclick="toggleMode()"></div>
+    <div id="children-list"></div>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('myNotion')) || { title: 'ホーム', text: '', children: [] };
+        // データ構造（再帰的に子ページを持つ）
+        let db = JSON.parse(localStorage.getItem('myNotion')) || { title: 'ホーム', text: '# ようこそ', children: [] };
         let currentPath = [db];
-
-        function saveAndPreview() {
-            const text = document.getElementById('text-area').value;
-            currentPath[currentPath.length - 1].text = text;
-            localStorage.setItem('myNotion', JSON.stringify(db));
-            
-            // マークダウンをHTMLに変換して表示！
-            document.getElementById('rendered-content').innerHTML = marked.parse(text);
-        }
+        let isEditing = false;
 
         function render() {
-            const currentPage = currentPath[currentPath.length - 1];
-            document.getElementById('page-title').innerText = currentPage.title;
-            document.getElementById('text-area').value = currentPage.text || '';
-            saveAndPreview(); // 初期表示時にプレビューも更新
+            const page = currentPath[currentPath.length - 1];
+            document.getElementById('page-title').innerText = page.title;
+            document.getElementById('editor').value = page.text;
+            document.getElementById('preview').innerHTML = marked.parse(page.text);
+            document.getElementById('nav').innerText = currentPath.map(p => p.title).join(' > ');
+            
+            const list = document.getElementById('children-list');
+            list.innerHTML = '<h3>子ページ:</h3>';
+            page.children.forEach(child => {
+                const div = document.createElement('div');
+                div.className = 'page-link';
+                div.innerText = child.title;
+                div.onclick = () => { currentPath.push(child); render(); };
+                list.appendChild(div);
+            });
+        }
+
+        function autoSave() {
+            currentPath[currentPath.length - 1].text = document.getElementById('editor').value;
+            localStorage.setItem('myNotion', JSON.stringify(db));
+            const status = document.getElementById('save-status');
+            status.style.opacity = '1';
+            setTimeout(() => status.style.opacity = '0', 2000);
+        }
+
+        function toggleMode() {
+            const ed = document.getElementById('editor');
+            const pr = document.getElementById('preview');
+            isEditing = !isEditing;
+            ed.style.display = isEditing ? 'block' : 'none';
+            pr.style.display = isEditing ? 'none' : 'block';
+            if(!isEditing) render();
+        }
+
+        function addPage() {
+            const title = prompt("ページ名:");
+            if(title) {
+                currentPath[currentPath.length - 1].children.push({ title, text: '', children: [] });
+                localStorage.setItem('myNotion', JSON.stringify(db));
+                render();
+            }
+        }
+
+        function goBack() { if(currentPath.length > 1) { currentPath.pop(); render(); } }
+
+        function addRow() { document.getElementById('editor').value += "\n| 項目 | 内容 |"; autoSave(); }
+        function removeRow() { 
+            let lines = document.getElementById('editor').value.split('\n');
+            lines.pop(); document.getElementById('editor').value = lines.join('\n'); autoSave(); 
         }
 
         render();
